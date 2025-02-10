@@ -1,0 +1,65 @@
+---
+title: "Ejemplos 1. Introducción a R"
+format: html
+editor: visual
+---
+
+
+```{r}
+#| label: load-packages
+
+library(tidyverse)
+```
+
+
+
+# Vectores
+
+Con frecuencia generaremos valores de una variable aleatoria con cierta distribución, se sugiere consultar las funciones de [distribuciones en R](https://www.stat.umn.edu/geyer/old/5101/rlook.html)
+
+```{r}
+muestra_normal <- rnorm(10000)
+
+
+ggplot()+
+  geom_density(aes(muestra_normal), color="black", fill="darkolivegreen2", alpha=0.5)+
+  theme_bw()
+```
+
+# Matrices
+
+
+
+
+
+# Listas
+
+
+
+
+# Factores y data frames
+
+
+
+# Subconjuntos
+
+
+# Estructuras de control
+
+
+
+# Funciones
+
+```{r}
+#library(Biostrings)
+
+my_rna <- paste0(sample(c("A", "C", "G", "U"), 400, replace = TRUE), collapse = "")
+my_rna
+```
+
+# Loop functions
+
+
+
+
+
