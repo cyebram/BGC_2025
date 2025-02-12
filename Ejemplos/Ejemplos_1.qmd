@@ -5,48 +5,77 @@ editor: visual
 ---
 
 
+
+
+
 ```{r}
 #| label: load-packages
+#| warning: false
+#| message: false
 
 library(tidyverse)
 ```
 
-
-
 # Vectores
+
+
+```{r}
+x <- c(1,2,5,4, 5:9)
+x
+class(x)
+length(x)
+attributes(x)
+```
 
 Con frecuencia generaremos valores de una variable aleatoria con cierta distribución, se sugiere consultar las funciones de [distribuciones en R](https://www.stat.umn.edu/geyer/old/5101/rlook.html)
 
 ```{r}
 muestra_normal <- rnorm(10000)
 
+class(muestra_normal)
 
 ggplot()+
-  geom_density(aes(muestra_normal), color="black", fill="darkolivegreen2", alpha=0.5)+
+  geom_density(aes(muestra_normal), color="black", fill="darkolivegreen2", alpha=0.3)+
   theme_bw()
 ```
+
+
+Generar una muestra tomados de un conjunto
+
+```{r}
+alfabeto <- c("A", "C", "G", "T")
+
+muestra_alfabeto <- sample(x= alfabeto, size = 80, replace = TRUE) 
+muestra_alfabeto <- sample(alfabeto, 80,  TRUE) 
+muestra_alfabeto
+```
+
+
+
+
 
 # Matrices
 
 
+```{r}
+x <- 1:20
 
+X <- matrix(x, nrow=5, ncol = 4, byrow = TRUE)
+X
+
+
+X <- rbind(X, c(2,3,4, 9))
+X
+```
 
 
 # Listas
 
-
-
-
 # Factores y data frames
-
-
 
 # Subconjuntos
 
-
 # Estructuras de control
-
-
 
 # Funciones
 
@@ -58,8 +87,3 @@ my_rna
 ```
 
 # Loop functions
-
-
-
-
-
