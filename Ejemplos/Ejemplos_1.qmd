@@ -71,11 +71,121 @@ X
 
 # Listas
 
+
+```{r}
+my_list <- list(1, "a", TRUE, 8+8i, c(5,5,5,5), matrix(1:6, nrow=2, ncol=3))
+my_list
+```
+
+
 # Factores y data frames
+
+```{r}
+answers <- factor(sample(c("yes", "no"), 100, replace = TRUE))
+table(answers)
+```
+
+```{r}
+ggplot()+
+  geom_bar(aes(answers, fill=answers), color="black", show.legend = FALSE)+
+  theme_minimal()
+```
+
+
+```{r}
+opciones <- factor(sample(1:5, 500, replace=TRUE))
+mean(opciones)
+ggplot()+
+  geom_bar(aes(opciones, fill=opciones), color="black", show.legend = FALSE)+
+  theme_minimal()
+
+```
+
+
+
+```{r}
+# Crear un vector que contenga valores NA
+v <- c(2,5, NA, 85, NA, NA, 56)
+# Obtener un vector que indique cuáles elementos son NA
+sum(!is.na(v))
+```
+
+
+
+```{r}
+df <- data.frame(age=sample(15:35, 500, replace = TRUE), group=sample(c("control", "treatment"), 500, replace=TRUE))
+df$group <- factor(df$group)
+df <- df |> arrange(group) 
+ggplot(df)+
+  geom_bar(aes(group), color="black", fill="firebrick")+
+  theme_bw()
+
+
+glimpse(df)
+```
+
+```{r}
+x <- rnorm(100)
+
+A <- matrix(x, 10, 10, dimnames = list(paste("Fila", 1:10, sep = "_"), paste("Columna", 1:10, sep = "_")))
+A
+```
+
+
+
 
 # Subconjuntos
 
+
+
+```{r}
+values <- rnorm(1000)
+mean(values)
+ge_mean <- values >= mean(values) # Identifica los valores mayores que o igual a la media
+valores_mayores <- values[values >= mean(values)]
+valores_mayores
+```
+```{r}
+A[9,9, drop=FALSE]
+A[,9, drop=FALSE]
+```
+```{r}
+A[c(2,3,9), c(5,7,10)]
+```
+```{r}
+
+
+x <- c(1,NA, 2, 4, NA, 5)
+y <- c("a", "b", NA, "d", NA, "f")
+
+df2 <- data.frame(x = x, y=y)
+df2
+df2_c <- df2[complete.cases(df2), ]
+df2_c
+
+
+```
+
+
+
+
 # Estructuras de control
+
+```{r}
+x <- c("a", "b", "c", "d")
+
+for (i in 1:4) {
+  print(x[i])
+}
+
+
+for (i in x) {
+  print(i)
+}
+
+```
+
+
 
 # Funciones
 
