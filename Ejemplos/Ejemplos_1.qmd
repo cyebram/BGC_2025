@@ -4,10 +4,6 @@ format: html
 editor: visual
 ---
 
-
-
-
-
 ```{r}
 #| label: load-packages
 #| warning: false
@@ -19,6 +15,8 @@ library(tidyverse)
 # Vectores
 
 
+Ejemplo inicial con la función `c` (concatenar)
+
 ```{r}
 x <- c(1,2,5,4, 5:9)
 x
@@ -28,6 +26,9 @@ attributes(x)
 ```
 
 Con frecuencia generaremos valores de una variable aleatoria con cierta distribución, se sugiere consultar las funciones de [distribuciones en R](https://www.stat.umn.edu/geyer/old/5101/rlook.html)
+
+
+Se genera una muestra (vector) de una variable aleatoria con distribución normal estándar y se realiza la gráfica de densidad.
 
 ```{r}
 muestra_normal <- rnorm(10000)
@@ -40,7 +41,7 @@ ggplot()+
 ```
 
 
-Generar una muestra tomados de un conjunto
+Generar una muestra tomados de un conjunto con cuatro elementos.
 
 ```{r}
 alfabeto <- c("A", "C", "G", "T")
@@ -49,12 +50,26 @@ muestra_alfabeto <- sample(x= alfabeto, size = 80, replace = TRUE)
 muestra_alfabeto <- sample(alfabeto, 80,  TRUE) 
 muestra_alfabeto
 ```
+Tabla de frecuencias
 
+```{r}
+table(muestra_alfabeto)
+```
+
+Gráfica de barras
+
+```{r}
+ggplot()+
+  geom_bar(aes(muestra_alfabeto, fill=muestra_alfabeto), color="black", show.legend = FALSE)+
+  theme_bw()
+```
 
 
 
 
 # Matrices
+
+Creamos una matriz de 5 filas y 4 columnas.
 
 
 ```{r}
@@ -62,14 +77,19 @@ x <- 1:20
 
 X <- matrix(x, nrow=5, ncol = 4, byrow = TRUE)
 X
+```
 
+Agregamos una fila
 
+```{r}
 X <- rbind(X, c(2,3,4, 9))
 X
 ```
 
 
 # Listas
+
+En una lista podemos almacenar objetos de diferentes clases.
 
 
 ```{r}
@@ -80,10 +100,14 @@ my_list
 
 # Factores y data frames
 
+Creamos un vector que es identificado como factor y se crea una tabla de frecuencias.
+
 ```{r}
 answers <- factor(sample(c("yes", "no"), 100, replace = TRUE))
 table(answers)
 ```
+
+Gráfica de barras para las frecuencias.
 
 ```{r}
 ggplot()+
@@ -92,16 +116,22 @@ ggplot()+
 ```
 
 
+Creamos un vector de una variable cualitativa con niveles: 1,2,3,4,5. Nótese que, como ahora no son de la clase numérica no podemos llevar operaciones sobre los elementos (por ejemplo, obtener la media).
+
 ```{r}
 opciones <- factor(sample(1:5, 500, replace=TRUE))
 mean(opciones)
+```
+
+Gráfica de barras para las frecuencias.
+
+```{r}
 ggplot()+
   geom_bar(aes(opciones, fill=opciones), color="black", show.legend = FALSE)+
   theme_minimal()
-
 ```
 
-
+Vector con valores ausentes `NA`.
 
 ```{r}
 # Crear un vector que contenga valores NA
@@ -110,10 +140,20 @@ v <- c(2,5, NA, 85, NA, NA, 56)
 sum(!is.na(v))
 ```
 
-
+Creamos una *data frame* proporcionando los vectores de cada columna, en este caso `age` y `group`.
 
 ```{r}
 df <- data.frame(age=sample(15:35, 500, replace = TRUE), group=sample(c("control", "treatment"), 500, replace=TRUE))
+
+glimpse(df)
+
+
+```
+
+Notemos que `group`es de clase `chr`, la convertimos en una variable cualitativa y graficamos las frecuencias.
+
+
+```{r}
 df$group <- factor(df$group)
 df <- df |> arrange(group) 
 ggplot(df)+
@@ -123,6 +163,13 @@ ggplot(df)+
 
 glimpse(df)
 ```
+
+
+# Nombres
+
+
+Nombramos las filas y columnas de una matriz por medio de una lista.
+
 
 ```{r}
 x <- rnorm(100)
@@ -136,25 +183,35 @@ A
 
 # Subconjuntos
 
-
+Subconjunto de un vector a partir de cierta característica
 
 ```{r}
-values <- rnorm(1000)
+values <- rnorm(100)
 mean(values)
 ge_mean <- values >= mean(values) # Identifica los valores mayores que o igual a la media
 valores_mayores <- values[values >= mean(values)]
 valores_mayores
 ```
+
+
+Al extraer un subconjunto de una matriz en ocasiones resulta un vector (por ejemplo al extraer elementos de una fila o columna), para mantener la estructura de matriz es necesario incluir el argumento `drop=FALSE`.
+
+
 ```{r}
 A[9,9, drop=FALSE]
 A[,9, drop=FALSE]
 ```
+
+Extraer filas y columnas de una matriz por medio de vectores.
+
 ```{r}
 A[c(2,3,9), c(5,7,10)]
 ```
+
+Ejemplo para eliminar filas con `NA`s.
+
+
 ```{r}
-
-
 x <- c(1,NA, 2, 4, NA, 5)
 y <- c("a", "b", NA, "d", NA, "f")
 
@@ -162,8 +219,6 @@ df2 <- data.frame(x = x, y=y)
 df2
 df2_c <- df2[complete.cases(df2), ]
 df2_c
-
-
 ```
 
 
@@ -171,13 +226,14 @@ df2_c
 
 # Estructuras de control
 
+Ejemplos del ciclo `for`.
+
 ```{r}
 x <- c("a", "b", "c", "d")
 
 for (i in 1:4) {
   print(x[i])
 }
-
 
 for (i in x) {
   print(i)
@@ -189,11 +245,164 @@ for (i in x) {
 
 # Funciones
 
-```{r}
-#library(Biostrings)
+Se implementa una función que convierte una secuencia de ARN en una secuencia de aminoácidos siguiendo el código genético estándar (proporcionado en el package `Biostrings` de Bioconductor).
 
-my_rna <- paste0(sample(c("A", "C", "G", "U"), 400, replace = TRUE), collapse = "")
+```{r}
+#| warning: false
+#| message: false
+
+library(Biostrings)
+
+RNA_GENETIC_CODE
+
+traducir_arn <- function(arn, paro=TRUE) {
+  codones <- substring(arn, seq(1, nchar(arn), 3), seq(3, nchar(arn), 3))
+  
+  aminoacidos <- vector("character", length = length(codones))
+  k <- 1
+  for (codon in codones) {
+    if (codon %in% names(RNA_GENETIC_CODE)){
+      aminoacidos[k] <- RNA_GENETIC_CODE[[codon]]
+    } else{
+      aminoacidos[k] <- "X"
+    }
+    k <- k+1
+  }
+  
+  if (paro == TRUE){
+  stop_index <- which(aminoacidos == "*")
+  
+  if (length(stop_index)>0){
+    aminoacidos <- aminoacidos[1:(stop_index[1])]
+  }
+  }
+  return(paste0(aminoacidos, collapse = ""))
+}
+
+```
+Creamos una secuencia de ARN que inicie con el codón AUG y aplicamos la función `traducir_arn`.
+
+```{r}
+my_rna <- paste0("AUG", sample(c("A", "C", "G", "U"), 402, replace = TRUE), collapse = "")
 my_rna
+my_aa <- traducir_arn(my_rna, paro =FALSE)
+my_aa
 ```
 
+`Biostrings` tiene implementada una función de traducción (se sugiere consultar la documentación `?translate`), nótese que antes hay que convertir la secuencia de ARN en un objeto `RNAString`
+
+```{r}
+aa_bioc <- translate(RNAString(my_rna))
+aa_bioc
+```
+
+Convertimos la secuencia en caracteres.
+
+```{r}
+aa_char <- as.character(aa_bioc)
+aa_char
+```
+
+Comparamos los resultados.
+
+```{r}
+my_aa==aa_char
+```
+
+
 # Loop functions
+
+
+Creamos un conjunto de datos con 50 observaciones de 10 variables.
+
+```{r}
+matriz_datos <- matrix(sample(rnorm(1500), 500, replace = TRUE), 50, 10, dimnames = list(c(paste("Sample", 1:50, sep="_")), c(paste("Variable", 1:10, sep="_"))))
+
+df <- as.data.frame(matriz_datos)
+```
+
+
+Se define una función que crea una lista cuyos elementos son las gráficas de densidad para cada una de las variables.
+
+Nota: Durante la clase vimos que guardaba la misma gráfica en cada elemento de la lista, sólo cambiando la etiqueta del eje x. Esto es debido al scope de la variable en el ciclo for, se puede consultar al respecto [aquí](https://stackoverflow.com/questions/31993704/storing-ggplot-objects-in-a-list-from-within-loop-in-r).
+
+```{r}
+set_density <- function(df, color_fill="darkolivegreen"){
+  graficas <- list()
+  for (j in names(df)) {
+    graficas[[j]] <- local({
+      j <- j
+      ggplot(df)+
+      geom_density(aes(eval(as.name(j))), color="black", fill=color_fill)+
+      labs(x=j)+
+      theme_bw()
+    })
+  }
+  return(graficas)
+}
+```
+
+
+
+Aplicamos la función al data frame definido previamente.
+
+```{r}
+mis_graficas <- set_density(df, color_fill = "deeppink")
+
+mis_graficas
+```
+
+
+Esto también se puede hacer por medio de `lapply`, primero definimos una función para la gráfica de densidad.
+
+```{r}
+my_density <- function(df, column, color_fill= "darkolivegreen"){
+  grafica <- ggplot(df)+
+      geom_density(aes(eval(as.name(column))), color="black", fill=color_fill)+
+      labs(x=column)+
+      theme_bw()
+  return(grafica)
+}
+```
+
+
+Ahora usamos `lapply`.
+
+```{r}
+mis_graficas_nuevas <- lapply(colnames(df), my_density, df=df, color_fill="chocolate1")
+
+mis_graficas_nuevas
+```
+
+Agregamos un título a cada gráfica 
+
+```{r}
+graficas_titulo <- lapply(mis_graficas, function(p){p+labs(title="Gráfica de densidad")})
+
+print(graficas_titulo[[1]])
+```
+
+
+### Ejemplos de la función `apply`
+
+
+Elemento máximo de cada fila de la matriz A:
+
+```{r}
+apply(A, 1, max)
+```
+
+
+
+Elemento mínimo de cada columna de la matriz A:
+
+```{r}
+apply(A, 2, min)
+```
+
+Promedio de cada fila de la matriz A:
+
+
+```{r}
+apply(A, 1, mean)
+```
