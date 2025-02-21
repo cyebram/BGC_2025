@@ -1,0 +1,582 @@
+---
+title: "Ejemplos 3. Clustering"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| warning: false
+#| message: false
+#| code-fold: true
+
+
+# CRAN Packages
+library(tidyverse)
+library(ggthemes)
+library(RColorBrewer)
+library(plotly)
+library(corrplot)
+library(kableExtra)
+library(multcomp)
+library(factoextra)
+library(FactoMineR)
+library(dendextend)
+library(igraph)
+library(cluster)
+library(NbClust)
+library(pheatmap)
+
+# Bioconductor Packages
+library(Hiiragi2013)
+library(mouse4302.db)
+library(vegan)
+```
+
+# Preparación de datos
+
+Trabajaremos con los datos de Hiiragi 2013. 
+
+```{r}
+data("x")
+class(x)
+```
+
+Extraemos en objetos diferentes la tabla de expresión y los metadatos.
+
+```{r}
+expr_data <- Biobase::exprs(x)
+pheno_data <- pData(x)
+dftx <-  data.frame(t(expr_data), pheno_data)
+dfx <-  as.data.frame(expr_data)
+groups <- group_by(pheno_data, sampleGroup) |> 
+  summarise(n=n(), color=unique(sampleColour))
+groupColor <-  setNames(groups$color, groups$sampleGroup)
+glimpse(pheno_data)
+```
+
+
+Consideraremos los 500 genes con mayor variación, se reproduce el heatmap de la sección anterior.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+
+topGenes <- order(rowVars(Biobase::exprs(x)), decreasing = TRUE)[1:500]
+rowCenter <- function(x) { x - rowMeans(x)}
+topdfx <- rowCenter(dfx[topGenes, ])
+
+pheatmap(topdfx, 
+  show_rownames = FALSE, 
+  show_colnames = FALSE, 
+  breaks = seq(-5, +5, length = 101),
+  annotation_col = pheno_data[, c("sampleGroup", "Embryonic.day", "ScanDate", "genotype") ],
+  annotation_colors = list(
+    sampleGroup = groupColor,
+    genotype = c("FGF4-KO" = "chocolate1", "WT" = "azure2"),
+    Embryonic.day = setNames(brewer.pal(9, "Blues")[c(3, 6, 9)], c("E3.25", "E3.5", "E4.5")),
+    ScanDate = setNames(brewer.pal(nlevels(x$ScanDate), "YlGn"), levels(x$ScanDate))
+  )
+)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+topdfx <- dfx[topGenes, ]
+
+pheatmap(topdfx, 
+  show_rownames = FALSE, 
+  show_colnames = FALSE, 
+  breaks = seq(1, 15, length = 101),
+  annotation_col = pheno_data[, c("sampleGroup", "Embryonic.day", "ScanDate", "genotype") ],
+  annotation_colors = list(
+    sampleGroup = groupColor,
+    genotype = c("FGF4-KO" = "chocolate1", "WT" = "azure2"),
+    Embryonic.day = setNames(brewer.pal(9, "Blues")[c(3, 6, 9)], c("E3.25", "E3.5", "E4.5")),
+    ScanDate = setNames(brewer.pal(nlevels(x$ScanDate), "YlGn"), levels(x$ScanDate))
+  )
+)
+```
+
+Nota: para llevar a cabo el agrupamiento, es necesario que todas las observaciones sean numéricas y dependiendo de las escalas sería necesario estandarizar.
+
+Para el clustering consideraremos el subconjunto de genes con mayor varianza, para ello se obtiene la matriz transpuesta de `topdfx`
+
+```{r}
+topdfxt <- t(topdfx)
+```
+
+
+
+
+# Distancias
+
+A continuación se muestra una representación gráfica de las matrices de distancias utilizando diferentes métricas:
+
+::: panel-tabset
+## Euclidiana
+
+```{r}
+#| code-fold: true
+
+dist.eucl <- dist(topdfxt)
+dist.eucl_matrix <- as.matrix(dist.eucl)
+dist.eucl_plot <- fviz_dist(dist.eucl, lab_size = 6)
+ggplotly(dist.eucl_plot)
+
+```
+
+## Manhattan
+
+```{r}
+#| code-fold: true
+
+dist.manh <- dist(topdfxt, method = "manhattan")
+dist.manh_matrix <- as.matrix(dist.manh)
+dist.manh_plot <- fviz_dist(dist.manh, lab_size = 6)
+ggplotly(dist.manh_plot)
+```
+
+
+## Correlación de Pearson
+
+En esta caso utilizamos la función `get_dist()` del package `factoextra`.
+
+```{r}
+#| code-fold: true
+
+dist.pearson <- get_dist(topdfxt, method = "pearson")
+dist.pearson_plot <- fviz_dist(dist.pearson, lab_size = 6)
+ggplotly(dist.pearson_plot)
+```
+
+## Correlación de Spearman
+
+```{r}
+#| code-fold: true
+
+dist.spearman <- get_dist(topdfxt, method = "spearman")
+dist.spearman_plot <- fviz_dist(dist.spearman, lab_size = 6)
+ggplotly(dist.spearman_plot)
+
+```
+
+
+
+## Bray Curtis
+
+```{r}
+#| code-fold: true
+
+dist.bray <- vegdist(topdfxt, method = "bray")
+dist.bray_plot <- fviz_dist(dist.bray, lab_size = 6)
+ggplotly(dist.bray_plot)
+
+```
+
+
+
+
+:::
+
+
+# K-medias
+
+Estimación del número óptimo de clusters.
+
+::: panel-tabset
+## WSS
+
+```{r}
+#| code-fold: true
+
+fviz_nbclust(topdfxt, kmeans, method= "wss")
+
+```
+
+## Silhouette
+
+```{r}
+#| code-fold: true
+
+fviz_nbclust(topdfxt, kmeans, method="silhouette")
+
+```
+
+## Gap stat
+
+```{r}
+#| code-fold: true
+
+fviz_nbclust(topdfxt, kmeans, nstart= 25, method="gap_stat", nboot = 50)
+```
+:::
+
+Se lleva a cabo el agrupamiento de K-medias con K=7.
+
+```{r}
+#| code-fold: true
+
+km.7 <- kmeans(topdfxt, 7, nstart = 25)
+fviz_cluster(km.7, data = topdfxt, palette= "jco", ellipse.type = "euclid", star.plot=TRUE, ggtheme=theme_bw())
+
+
+attributes(km.7)
+
+```
+
+
+
+# Agrupamiento jerárquico
+
+Llevamos a cabo el agrupamiento jerárquico utilizando la matriz de distancias Euclidianas y la basada en la correlación de Pearson. En cada caso se muestra los dendrogramas utilizando diferentes métodos de enlace.
+
+## Distancia Euclidiana
+
+::: panel-tabset
+### Completo
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+euc_comp_hc <- hclust(dist.eucl, method = "complete")
+fviz_dend(euc_comp_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=45)
+
+```
+
+En este caso, al considerar 5 grupos, *cortamos* el árbol, identificamos cuántas observaciones hay en cada cluster y por ejemplo, mostramos los elementos del grupo 5.
+
+```{r}
+#| code-fold: true
+
+grp_euc_complete <- cutree(euc_comp_hc, k=5)
+table(grp_euc_complete)
+rownames(topdfxt)[grp_euc_complete == 5]
+```
+
+Utilizando la función `fviz_cluster()` podemos visualizar el resultado por medio de un scatterplot. Las observaciones son representadas en el plano usando componentes principales.
+
+```{r}
+#| code-fold: true
+
+fviz_cluster(list(data= topdfxt, cluster= grp_euc_complete),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Single
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+euc_single_hc <- hclust(dist.eucl, method = "single")
+fviz_dend(euc_single_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=45)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_single <- cutree(euc_single_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_euc_single),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Average
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+euc_ave_hc <- hclust(dist.eucl, method = "average")
+fviz_dend(euc_ave_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=45)
+```
+
+### Ward.D
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+euc_ward_hc <- hclust(dist.eucl, method = "ward.D")
+fviz_dend(euc_ward_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=65)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_ward <- cutree(euc_ward_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_euc_ward),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Ward.D2
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+euc_ward2_hc <- hclust(dist.eucl, method = "ward.D2")
+fviz_dend(euc_ward2_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE, labels_track_height=65)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_euc_ward2 <- cutree(euc_ward2_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_euc_ward2),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+:::
+
+## Distancia Pearson
+
+::: panel-tabset
+### Completo
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+pearson_comp_hc <- hclust(dist.pearson, method = "complete")
+fviz_dend(pearson_comp_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+
+```
+
+En este caso, al considerar 5 grupos, *cortamos* el árbol, identificamos cuántas observaciones hay en cada cluster y por ejemplo, mostramos los elementos del grupo 5.
+
+```{r}
+#| code-fold: true
+
+grp_pearson_complete <- cutree(pearson_comp_hc, k=5)
+table(grp_pearson_complete)
+rownames(topdfxt)[grp_pearson_complete == 5]
+```
+
+Utilizando la función `fviz_cluster()` podemos visualizar el resultado por medio de un scatterplot. Las observaciones son representadas en el plano usando componentes principales.
+
+```{r}
+#| code-fold: true
+
+fviz_cluster(list(data= topdfxt, cluster= grp_pearson_complete),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Single
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+pearson_single_hc <- hclust(dist.pearson, method = "single")
+fviz_dend(pearson_single_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_pearson_single <- cutree(pearson_single_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_pearson_single),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Average
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+pearson_ave_hc <- hclust(dist.pearson, method = "average")
+fviz_dend(pearson_ave_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+```
+
+### Ward.D
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+pearson_ward_hc <- hclust(dist.pearson, method = "ward.D")
+fviz_dend(pearson_ward_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_pearson_ward <- cutree(pearson_ward_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_pearson_ward),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+
+### Ward.D2
+
+```{r}
+#| code-fold: true
+#| warning: false
+
+pearson_ward2_hc <- hclust(dist.pearson, method = "ward.D2")
+fviz_dend(pearson_ward2_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+```
+
+Se proyecta en el subespacio generado por las dos primeras componentes principales:
+
+```{r}
+#| code-fold: true
+
+grp_pearson_ward2 <- cutree(pearson_ward2_hc, k=5)
+fviz_cluster(list(data= topdfxt, cluster= grp_pearson_ward2),
+             palette = "jco", ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_bw())
+```
+:::
+
+
+
+## Visualización del dendrograma
+
+Retomamos el dendrograma que resultó con la métrica Euclidiana y el método de Ward.2
+
+::: panel-tabset
+
+### Dendrograma
+
+```{r}
+#| code-fold: true
+
+fviz_dend(euc_ward2_hc, k=5, cex=0.5, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+```
+
+
+### Dendrograma horizontal
+
+```{r}
+#| code-fold: true
+#| fig-height: 8
+
+fviz_dend(euc_ward2_hc, k=5, cex=0.5, horiz= TRUE, k_colors = "jco", rect=TRUE, rect_border= "jco", rect_fill = TRUE)
+
+```
+
+### Circular
+
+```{r}
+#| code-fold: true
+#| fig-width: 9
+
+fviz_dend(euc_ward2_hc, k=5, cex=0.5, k_colors = "jco", type="circular")+
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+
+### Phylogenic
+
+
+```{r}
+#| code-fold: true
+
+fviz_dend(euc_ward2_hc, k=5, k_colors="jco", type = "phylogenic", repel=TRUE, phylo_layout = "layout.gem")+
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+
+
+:::
+
+
+## Subárboles
+
+
+::: panel-tabset
+
+
+### Dendrograma
+
+```{r}
+#| code-fold: true
+
+dend_plot <- fviz_dend(euc_ward2_hc, k=5, cex=0.5, k_colors="jco")
+dend_plot
+```
+
+
+### Ramas
+
+```{r}
+#| code-fold: true
+dend_data <- attr(dend_plot, "dendrogram")
+dend_cuts <- cut(dend_data, h=150)
+fviz_dend(dend_cuts$upper)
+```
+
+
+### Subtree 1
+
+```{r}
+#| code-fold: true
+
+fviz_dend(dend_cuts$lower[[1]], main = "Subtree 1")
+```
+
+
+### Subtree 2
+
+```{r}
+#| code-fold: true
+
+
+fviz_dend(dend_cuts$lower[[2]], main = "Subtree 2")
+
+```
+
+
+### Subtree 3
+
+```{r}
+#| code-fold: true
+
+
+fviz_dend(dend_cuts$lower[[3]], main = "Subtree 3")
+
+```
+
+
+
+### Subtree 4
+
+```{r}
+#| code-fold: true
+fviz_dend(dend_cuts$lower[[4]], main = "Subtree 4")
+```
+
+
+
+### Sutree 5
+
+```{r}
+#| code-fold: true
+
+fviz_dend(dend_cuts$lower[[5]], main = "Subtree 5")
+```
+
+
+
+
+:::
