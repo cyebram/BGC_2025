@@ -1,0 +1,297 @@
+---
+title: "Ejemplos 4. PCA Preliminar"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| warning: false
+#| message: false
+#| code-fold: true
+
+
+# CRAN Packages
+library(tidyverse)
+library(ggthemes)
+library(RColorBrewer)
+library(plotly)
+library(corrplot)
+library(kableExtra)
+library(multcomp)
+library(factoextra)
+library(FactoMineR)
+library(dendextend)
+library(igraph)
+library(cluster)
+library(NbClust)
+library(pheatmap)
+library(vegan)
+
+```
+
+
+
+# Data `turtles`
+
+Un conjunto de datos simple que nos ayudará a comprender los principios básicos es una matriz de tres dimensiones de mediciones biométricas en tortugas pintadas (*Chrysemis picta*).
+
+
+
+```{r}
+#| code-fold: true
+
+turtles <-  read.table("PaintedTurtles.txt", header = TRUE)
+#turtles <-  read.table("./Ejemplos/PaintedTurtles.txt", header = TRUE)
+turtles$sex <- factor(turtles$sex)
+glimpse(turtles)
+```
+
+
+# Correlación
+
+
+```{r}
+#| code-fold: true
+
+turtles_num <- dplyr::select(turtles, where(is.numeric))
+cor_turtles <- cor(turtles_num)
+cor_turtles
+```
+
+Matriz de correlación con pheatmap
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+pheatmap(cor_turtles)
+```
+
+Matriz de correlación con [corrplot](https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html)
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+corrplot(cor_turtles, method = "color", col.lim = c(0.95, 1), addCoef.col = 'grey50')
+```
+
+# Proyecciones
+
+
+## Proyección sobre el eje $x$
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+turtles_scale <- data.frame(scale(turtles_num))
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_point(aes(x= length, y=0), color = "firebrick", size=3)+
+  geom_segment(aes(x= length, y= 0, xend = length, yend= width), linetype ="dashed")+
+  coord_fixed()+
+  theme_bw()
+  
+
+
+```
+
+## Proyección sobre el eje $y$
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+turtles_scale <- data.frame(scale(turtles_num))
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_point(aes(x= 0, y=width), color = "tomato3", size=3)+
+  geom_segment(aes(x= 0, y= width, xend = length, yend= width), linetype ="dashed")+
+  coord_fixed()+
+  theme_bw()
+  
+
+
+```
+
+
+## Regresión de `width` sobre `length`
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+turtles_reg1 <-  lm(width ~ length, data = turtles_scale)
+summary(turtles_reg1)
+a1 <-  turtles_reg1$coefficients[1] # intersección con el eje y
+b1 <- turtles_reg1$coefficients[2] # pendiente
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_abline(intercept = a1, slope = b1, col = "chocolate2", linewidth = 1.5)+
+  geom_segment(aes(x= length, y=width, xend = length, yend = turtles_reg1$fitted),
+    colour = "red", arrow = arrow(length = unit(0.15, "cm")))+
+  coord_fixed()+
+  theme_bw()
+
+
+```
+
+## Regresión de `length` sobre `width` 
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+turtles_reg2 <-  lm(length ~ width, data = turtles_scale)
+summary(turtles_reg2)
+a2 <-  turtles_reg2$coefficients[1] # intersección con el eje y
+b2 <- turtles_reg2$coefficients[2] # pendiente
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_abline(intercept = -a2/b2, slope = 1/b2, col = "darkgreen", linewidth = 1.5)+
+  geom_segment(aes(x= length, y=width, xend = turtles_reg2$fitted, yend = width),
+    colour = "orange", arrow = arrow(length = unit(0.15, "cm")))+
+  coord_fixed()+
+  theme_bw()
+
+
+```
+
+
+
+# Proyección sobre la línea que minimiza las distancias
+
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+
+xy <-  cbind(turtles_scale$length, turtles_scale$width)
+svda <-  svd(xy)
+pc <-  xy %*% svda$v[, 1] %*% t(svda$v[, 1])
+bp <-  svda$v[2, 1] / svda$v[1, 1]
+ap <-  mean(pc[, 2]) - bp * mean(pc[, 1])
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_abline(intercept = ap, slope = bp, col = "deeppink4", linewidth = 1.5)+
+  geom_segment(aes(x= length, y=width, xend = pc[ ,1], yend = pc[ ,2]),
+    colour = "dodgerblue2", arrow = arrow(length = unit(0.15, "cm")))+
+  coord_fixed()+
+  theme_bw()
+
+```
+
+## Las tres líneas en un solo gráfico.
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+
+
+ggplot(turtles_scale)+
+  geom_point(aes(length, width), size = 2, shape =21)+
+  geom_abline(intercept = a1, slope = b1,  linewidth = 0.5, color="chocolate2")+
+  geom_abline(intercept = -a2/b2, slope = 1/b2, linewidth = 0.5, color="darkgreen")+
+  geom_abline(intercept = ap, slope = bp, linewidth = 0.5, color="deeppink")+
+  coord_fixed()+
+  theme_bw()
+
+
+
+
+```
+
+# PCA Turtles paso a paso
+
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+turtles_svd <- svd(turtles_scale)
+names(turtles_svd)
+
+#  Aplicar SVD: X_scale = U D V^T
+U <- turtles_svd$u  
+D <- diag(turtles_svd$d)  
+V <- turtles_svd$v  
+
+# 4Crear el plano PCA usando las dos primeras componentes principales
+pc1 <- V[,1]  # Primer componente principal (vector)
+pc2 <- V[,2]  # Segundo componente principal (vector)
+
+# Generar una cuadrícula en el espacio de los dos primeros PCs
+grid_x <- seq(-3, 3, length.out = 50)
+grid_y <- seq(-3, 3, length.out = 50)
+grid <- expand.grid(grid_x, grid_y)
+
+# Ecuación del plano en el espacio original (combinación lineal de PC1 y PC2)
+plane <- data.frame(
+  X = grid$Var1 * pc1[1] + grid$Var2 * pc2[1],  
+  Y = grid$Var1 * pc1[2] + grid$Var2 * pc2[2],  
+  Z = grid$Var1 * pc1[3] + grid$Var2 * pc2[3]   
+)
+
+# Crear la gráfica en R^3
+fig <- plot_ly()
+
+# Agregar puntos originales en R^3
+fig <- fig |> 
+  add_trace(
+    x = turtles_scale[,1], y = turtles_scale[,2], z = turtles_scale[,3], 
+    type = "scatter3d", mode = "markers", marker = list(size = 5, color = "blue"),
+    name = "Datos Originales"
+  )
+
+# Agregar el plano generado por las dos primeras componentes principales
+fig <- fig |> 
+  add_trace(
+    x = plane$X, y = plane$Y, z = plane$Z,
+    type = "mesh3d", opacity = 0.5, color = c("firebrick", "blue", "gold"),
+    name = "Plano PCA"
+  )
+
+# Mostrar gráfico
+fig
+
+
+
+```
+
+O bien:
+
+```{r}
+#| code-fold: true
+#| fig-align: "center"
+
+
+ppdf = tibble(PC1n = -turtles_svd$u[, 1] * turtles_svd$d[1],
+              PC2n =  turtles_svd$u[, 2] * turtles_svd$d[2])
+gg <-  ggplot(ppdf, aes(x = PC1n, y = PC2n)) + 
+    geom_point() + 
+    geom_hline(yintercept = 0, color = "purple", linewidth = 1.5, alpha = 0.5) +
+    xlab("PC1 ")+ ylab("PC2") + xlim(-4.6, 2.7) + ylim(-0.6, 0.6) + 
+    theme_bw()
+
+gg + geom_point(aes(x = PC1n, y = 0), color = "red") +
+     geom_segment(aes(xend = PC1n, yend = 0), color = "red") 
+gg + geom_point(aes(x = 0, y = PC2n), color = "blue") +
+     geom_segment(aes(yend = PC2n, xend = 0), color = "blue") +
+     geom_vline(xintercept = 0, color = "skyblue", linewidth = 1.5, alpha = 0.5) 
+```
+
+
