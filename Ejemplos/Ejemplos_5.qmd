@@ -1,0 +1,283 @@
+---
+title: "Ejemplos 5. PCA"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| warning: false
+#| message: false
+#| code-fold: true
+
+
+# CRAN Packages
+library(tidyverse)
+library(ggthemes)
+library(RColorBrewer)
+library(plotly)
+library(corrplot)
+library(kableExtra)
+library(multcomp)
+library(factoextra)
+library(FactoMineR)
+library(dendextend)
+library(igraph)
+library(cluster)
+library(NbClust)
+library(pheatmap)
+library(vegan)
+
+# Bioconductor Packages
+library(Hiiragi2013)
+library(mouse4302.db)
+
+```
+
+
+
+
+
+# Preparación de datos
+
+Trabajaremos con los datos de Hiiragi 2013. 
+
+```{r}
+data("x")
+class(x)
+```
+
+Extraemos en objetos diferentes la tabla de expresión y los metadatos.
+
+```{r}
+#| code-fold: true
+
+expr_data <- Biobase::exprs(x)
+pheno_data <- pData(x)
+dftx <-  data.frame(t(expr_data), pheno_data)
+dfx <-  as.data.frame(expr_data)
+groups <- group_by(pheno_data, sampleGroup) |> 
+  summarise(n=n(), color=unique(sampleColour))
+groupColor <-  setNames(groups$color, groups$sampleGroup)
+glimpse(pheno_data)
+```
+
+
+Consideraremos los 500 genes con mayor variación.
+
+```{r}
+topGenes <- order(rowVars(Biobase::exprs(x)), decreasing = TRUE)[1:500]
+topdfx <- dfx[topGenes, ]
+topdftx <- dftx[ , topGenes]
+```
+
+
+## Resultados PCA
+
+Variables (columnas) genes y filas las muestras.
+
+::: panel-tabset
+### Eigenvalores y varianzas
+
+```{r}
+#| code-fold: true
+
+PC_total <- prcomp(topdftx, scale.=TRUE, center=TRUE)
+
+eig_total <- get_eigenvalue(PC_total)
+eig_tabla <- data.frame(PC=paste0("PC",1:dim(eig_total)[1]), 
+                        Eigenvalor=round(eig_total$eigenvalue,3), 
+                        Varianza=round(eig_total$variance.percent,2), 
+                        Var_acu=round(eig_total$cumulative.variance.percent,2))
+
+kable(eig_tabla, align = "c", col.names = c("Componente", "Eigenvalor", "% varianza", "% varianza acumulada")) %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+### Scree plot
+
+```{r}
+#| code-fold: true
+fviz_eig(PC_total, addlabels = TRUE)
+```
+
+### Coeficientes (Loadings)
+
+```{r}
+#| code-fold: true
+PC_coef <-data.frame(PC_total$rotation[ ,1:5])
+kable(PC_coef, align = "c") %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+### Contribución variables completo
+
+```{r}
+#| code-fold: true
+fviz_pca_var(PC_total, col.var = "contrib", gradient.cols=c("#1627dc", "#ffb600", "#ff2e16"), axes=c(1,3))
+```
+
+### Contribución variables parcial
+
+```{r}
+#| code-fold: true
+fviz_pca_var(PC_total, col.var = "contrib", gradient.cols=c("#1627dc", "#ffb600", "#ff2e16"), select.var = list(contrib=20), axes=c(1,3))
+```
+
+### Contribución PC1
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_total, "var", axes = 1, select.var = list(contrib=100))
+```
+
+### Contribución PC2
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_total, "var", axes = 2, select.var = list(contrib=100))
+```
+:::
+
+## Proyecciones
+
+::: panel-tabset
+### Proyección 1
+
+```{r}
+#| code-fold: true
+fviz_pca_ind(PC_total,
+             fill.ind = pheno_data$sampleGroup,
+             pointshape = 21,
+             pointsize = 2,
+             #addEllipses = TRUE,
+             label= "none",
+            repel = TRUE   
+  )
+```
+
+### Proyección 2
+
+```{r}
+#| code-fold: true
+proy_scores <- fviz_pca_ind(PC_total,
+             fill.ind = pheno_data$sampleGroup,
+             pointshape = 21,
+             pointsize = 2,
+             #addEllipses = TRUE,
+             label= "none"
+  )
+
+ggplotly(proy_scores)
+```
+:::
+
+
+
+
+
+## Resultados PCA
+
+Variables (columnas) muestras y filas los genes.
+
+::: panel-tabset
+### Eigenvalores y varianzas
+
+```{r}
+#| code-fold: true
+
+PC_total <- prcomp(topdfx, scale.=TRUE, center=TRUE)
+
+eig_total <- get_eigenvalue(PC_total)
+eig_tabla <- data.frame(PC=paste0("PC",1:dim(eig_total)[1]), 
+                        Eigenvalor=round(eig_total$eigenvalue,3), 
+                        Varianza=round(eig_total$variance.percent,2), 
+                        Var_acu=round(eig_total$cumulative.variance.percent,2))
+
+kable(eig_tabla, align = "c", col.names = c("Componente", "Eigenvalor", "% varianza", "% varianza acumulada")) %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+### Scree plot
+
+```{r}
+#| code-fold: true
+fviz_eig(PC_total, addlabels = TRUE)
+```
+
+### Coeficientes (Loadings)
+
+```{r}
+#| code-fold: true
+PC_coef <-data.frame(PC_total$rotation[ ,1:5])
+kable(PC_coef, align = "c") %>% kable_styling(c("striped", "hover"), full_width = F)%>% scroll_box(width="100%", height="300px", fixed_thead = TRUE)
+```
+
+### Contribución variables completo
+
+```{r}
+#| code-fold: true
+fviz_pca_var(PC_total, col.var = "contrib", gradient.cols=c("#1627dc", "#ffb600", "#ff2e16"), axes=c(1,3))
+```
+
+### Contribución variables parcial
+
+```{r}
+#| code-fold: true
+fviz_pca_var(PC_total, col.var = "contrib", gradient.cols=c("#1627dc", "#ffb600", "#ff2e16"), select.var = list(contrib=20), axes=c(1,3))
+```
+
+### Contribución PC1
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_total, "var", axes = 1, select.var = list(contrib=100))
+```
+
+### Contribución PC2
+
+```{r}
+#| code-fold: true
+fviz_contrib(PC_total, "var", axes = 2, select.var = list(contrib=100))
+```
+:::
+
+## Proyecciones
+
+::: panel-tabset
+### Proyección 1
+
+```{r}
+#| code-fold: true
+fviz_pca_biplot(PC_total,
+             geom.ind ="point",    
+             fill.ind = "firebrick",
+             alpha.ind=0.6,
+             pointshape = 21,
+             pointsize = 2,
+             col.var = "contrib",
+             label = "var"
+             #addEllipses = TRUE,
+  )
+```
+
+### Proyección 2
+
+```{r}
+#| code-fold: true
+fviz_pca_ind(PC_total,
+             fill.ind = "firebrick",
+             alpha.ind = 0.6,
+             pointshape = 21,
+             pointsize = 2,
+             #addEllipses = TRUE,
+             label= "none"
+  )
+
+
+```
+:::
+
+
+
+
+
+
+
